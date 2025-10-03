@@ -8,11 +8,11 @@ import json
 import os
 
 # Configure Gemini API with safety settings and API version
-import os
+GEMINI_API_KEY = 'AIzaSyCC9n_Uy30m5VW0SQhnnATzg2dPKmjx42g'
 
 # Configure the client
 genai.configure(
-    api_key=os.getenv('GEMINI_API_KEY'),  # Get API key from environment variable
+    api_key=GEMINI_API_KEY,
     transport='rest'  # Explicitly set transport to REST
 )
 
