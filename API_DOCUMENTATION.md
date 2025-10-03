@@ -1,4 +1,8 @@
-# Inventory Forecasting API Documentation
+# API Documentation
+
+## Base URLs
+- Inventory Forecasting API: `https://inventory-forecast-api.onrender.com`
+- Tariff Impact API: `https://tariff-impact-api.onrender.com`
 
 Base URL: `https://model-ai-inventory.onrender.com`
 
