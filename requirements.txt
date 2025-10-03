@@ -1,38 +1,16 @@
-# Web Framework and API
+# Web Framework
 fastapi==0.104.1
 uvicorn==0.24.0
-python-multipart==0.0.6
 gunicorn==21.2.0
-starlette==0.27.0
+pydantic==2.4.2
+python-multipart==0.0.6
 
-# Data Processing and Analysis
-pandas==1.5.3
-numpy==1.24.3
+# Data Processing & ML
+pandas==2.0.3
+numpy>=2.0.0
 prophet==1.1.4
 scikit-learn==1.3.2
-
-# OpenAPI and Documentation
-pydantic==2.4.2
-
-# AI and Machine Learning
-google-generativeai==0.3.2
-google-cloud-aiplatform==1.36.0
-protobuf==4.25.1
-grpcio==1.59.2
-google-api-core==2.14.0
-google-auth==2.23.4
-
-# Visualization
 matplotlib==3.8.1
-
-# HTTP and API Tools
-requests==2.31.0
-httpx==0.25.0
-aiohttp==3.9.1
-
-# Development and Testing
-python-dotenv==1.0.0
-pytest==7.4.3
 
 # Required by Prophet
 cmdstanpy==1.1.0
@@ -41,8 +19,12 @@ ephem==4.1.4
 holidays==0.35
 tqdm==4.66.1
 
-# Security and Environment
-python-jose[cryptography]==3.3.0
+# Tariff API Dependencies
+google-generativeai==0.3.2
+google-cloud-aiplatform==1.36.0
+google-api-core==2.14.0
+google-auth==2.23.4
+
+# Environment & Config
 python-decouple==3.8
-passlib[bcrypt]>=1.7.4
-python-decouple>=3.8
+python-dotenv==1.0.0

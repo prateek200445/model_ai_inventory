@@ -4,23 +4,27 @@ services:
     name: inventory-forecast-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    startCommand: gunicorn model:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
-      - key: PORT
-        value: 8000
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: https://sustain-a-thon-8yn8.vercel.app
 
   # Tariff Impact API Service
   - type: web
     name: tariff-impact-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn main2:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    startCommand: gunicorn tariff_api:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
-      - key: PORT
-        value: 8001
-      - key: GEMINI_API_KEY
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: https://sustain-a-thon-8yn8.vercel.app
+      - key: GOOGLE_API_KEY
         sync: false # This will be set manually in Render dashboard
