@@ -1,11 +1,29 @@
 # api.py
-from fastapi import FastAPI, Response
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Response, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import model   # <-- make sure model.py is in same folder
 import base64  # for encoding the image
 
 app = FastAPI(title="Inventory Forecast API", version="1.0")
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[model.VERCEL_FRONTEND],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add error handling
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=500,
+        content={"error": str(exc)},
+    )
 
 # Input schema (if you want parameters from frontend)
 class ForecastRequest(BaseModel):

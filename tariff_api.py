@@ -1,9 +1,19 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from tariff_impact_model import TariffImpactModel
 from pydantic import BaseModel
 from typing import Optional
 
 app = FastAPI(title="Tariff Impact Analysis API", version="1.0.0")
+
+# Add CORS middleware to allow requests from your Vercel frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://sustain-a-thon-8yn8.vercel.app"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 model = TariffImpactModel()
 
 # Add API information

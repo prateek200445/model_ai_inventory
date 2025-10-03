@@ -5,7 +5,19 @@ import matplotlib.pyplot as plt
 from datetime import timedelta
 from prophet import Prophet
 import logging
+import json
+from pathlib import Path
+
+# Configure logging
 logging.getLogger('prophet').setLevel(logging.ERROR)  # Reduce Prophet debugging output
+
+# Constants
+VERCEL_FRONTEND = "https://sustain-a-thon-8yn8.vercel.app"
+ALLOWED_ORIGINS = [
+    VERCEL_FRONTEND,
+    "http://localhost:3000",  # For local development
+    "http://localhost:8000",  # For local API testing
+]
 
 # Load your dataset
 df = pd.read_csv("large_dataset.csv")
