@@ -1,6 +1,7 @@
 import requests
 import json
 import pandas as pd
+import os
 
 def load_sample_data():
     """Load sample data from the CSV file"""
@@ -20,7 +21,8 @@ def load_sample_data():
 
 def test_api():
     """Test the tariff analysis API"""
-    url = "http://127.0.0.1:8001/analyze_tariff"
+    # You can configure this URL via environment variable for different environments
+    url = os.getenv('API_URL', 'http://127.0.0.1:8001/analyze_tariff')
     sample_data = load_sample_data()
     
     # Test cases

@@ -7,14 +7,10 @@ from tariff_impact_model import TariffImpactModel
 
 app = FastAPI(title="Tariff Impact Analysis API", version="1.0.0")
 
-# Configure CORS for Vercel frontend
+# Configure CORS to allow all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://sustain-a-thon-8yn8.vercel.app",
-        "http://localhost:3000",  # For local development
-        "http://127.0.0.1:3000"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -6,10 +6,10 @@ from typing import Optional
 
 app = FastAPI(title="Tariff Impact Analysis API", version="1.0.0")
 
-# Add CORS middleware to allow requests from your Vercel frontend
+# Add CORS middleware to allow requests from any origin
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://sustain-a-thon-8yn8.vercel.app"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

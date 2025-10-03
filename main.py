@@ -17,18 +17,10 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-# Configure CORS for both local and production
-ORIGINS = [
-    model.VERCEL_FRONTEND,
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "https://sustain-a-thon-8yn8.vercel.app",
-    "https://inventory-forecast-api.onrender.com"
-]
-
+# Configure CORS to allow all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
