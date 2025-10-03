@@ -41,8 +41,51 @@ async def get_plot():
     return FileResponse("forecast_plot.png", media_type="image/png")
 
 
+@app.get("/forecast")
+async def get_forecast(
+    days: int = 7,
+    product_id: str | None = None,
+    category: str | None = None,
+    region: str | None = None,
+    min_rating: float | None = None,
+    max_price: float | None = None,
+    min_discount: float | None = None
+):
+    # Call your model's forecast function with all parameters
+    result = model.forecast(
+        days=days,
+        product_id=product_id,
+        category=category,
+        region=region,
+        min_rating=min_rating,
+        max_price=max_price,
+        min_discount=min_discount
+    )
+
+    # Read and encode the plot image
+    try:
+        with open("forecast_plot.png", "rb") as image_file:
+            encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+    except Exception as e:
+        encoded_image = None
+
+    response = {
+        "Reorder Point": result["Reorder Point"],
+        "Safety Stock": result["Safety Stock"],
+        "Minimum Level": result["Minimum Level"],
+        "Maximum Level": result["Maximum Level"],
+        "Forecast": result["Forecast"],   # dictionary {date: demand}
+        "Warnings": result["Warnings"],   # list of warnings
+        "plot_data": {
+            "image": encoded_image,
+            "content_type": "image/png",
+            "encoding": "base64"
+        }
+    }
+    return response
+
 @app.post("/forecast")
-def get_forecast(request: ForecastRequest):
+def post_forecast(request: ForecastRequest):
     # Call your model's forecast function with all parameters
     result = model.forecast(
         days=request.days,

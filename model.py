@@ -3,13 +3,40 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import timedelta
+from prophet import Prophet
+import logging
+logging.getLogger('prophet').setLevel(logging.ERROR)  # Reduce Prophet debugging output
 
-# Load your dataset (replace with your file path)
-df = pd.read_csv("large_dataset.csv")   # 👈 update this with your actual dataset file
+# Load your dataset
+df = pd.read_csv("large_dataset.csv")
 df['date'] = pd.to_datetime(df['date'])
-df = df.set_index('date')
+df = df.sort_values('date')  # Ensure data is sorted by date
 
-# Simple forecasting model (moving average)
+class InventoryForecastModel:
+    def __init__(self):
+        self.model = None
+        self.last_training_date = None
+        
+    def prepare_data(self, filtered_df):
+        # Prophet requires columns named 'ds' and 'y'
+        prophet_df = filtered_df.groupby('date')['sales'].sum().reset_index()
+        prophet_df.columns = ['ds', 'y']
+        return prophet_df
+        
+    def train(self, data):
+        # Initialize and train Prophet model
+        self.model = Prophet(
+            yearly_seasonality=True,
+            weekly_seasonality=True,
+            daily_seasonality=True,
+            seasonality_mode='multiplicative',
+            interval_width=0.95,  # 95% confidence interval
+            changepoint_prior_scale=0.05  # Makes trend more flexible
+        )
+        self.model.fit(data)
+        self.last_training_date = data['ds'].max()
+
+# Main forecasting function
 def forecast(days=7, product_id=None, category=None, region=None, 
             min_rating=None, max_price=None, min_discount=None):
     # Apply filters to get relevant data
@@ -40,28 +67,43 @@ def forecast(days=7, product_id=None, category=None, region=None,
             "Warnings": ["⚠️ No historical data available for the specified filters"]
         }
     
-    # Calculate daily demand from filtered data
-    daily_demand = filtered_df.groupby('date')['sales'].sum()
+    # Initialize and train Prophet model
+    model = InventoryForecastModel()
+    prophet_data = filtered_df.groupby('date')['sales'].sum().reset_index()
+    prophet_data.columns = ['ds', 'y']
+    
+    model.train(prophet_data)
+    forecast_result = model.model.predict(model.model.make_future_dataframe(periods=int(days), freq='D'))
+    
+    # Extract relevant forecast dates (last 'days' entries)
+    future_dates = forecast_result['ds'].tail(days)
+    forecast_values = forecast_result['yhat'].tail(days)  # predicted values
+    forecast_lower = forecast_result['yhat_lower'].tail(days)  # lower bound
+    forecast_upper = forecast_result['yhat_upper'].tail(days)  # upper bound
 
-    # Inventory calculations
-    avg_daily_demand = daily_demand.mean()
-    std_daily_demand = daily_demand.std()
-
+    # Calculate inventory parameters using Prophet's predictions
+    avg_daily_demand = forecast_values.mean()
+    std_daily_demand = forecast_values.std()
+    
     lead_time = 5  # assumed lead time in days
-    safety_stock = int(std_daily_demand * np.sqrt(lead_time))
+    service_level = 0.95  # 95% service level
+    z_score = 1.645  # z-score for 95% service level
+    
+    safety_stock = int(z_score * std_daily_demand * np.sqrt(lead_time))
     reorder_point = int(avg_daily_demand * lead_time + safety_stock)
     min_level = safety_stock
     max_level = reorder_point + int(avg_daily_demand * 2)
 
-    # Forecast future demand (using moving average)
-    # Force some extreme values to demonstrate both warnings
-    base_forecast = [avg_daily_demand] * days
-    base_forecast[0] = max_level * 1.2  # Force overstock
-    base_forecast[1] = min_level * 0.5  # Force stockout risk
-    forecast_values = base_forecast
-    future_dates = pd.date_range(start=df.index[-1] + timedelta(days=1), periods=days)
-
-    forecast_dict = {str(date.date()): round(value, 2) for date, value in zip(future_dates, forecast_values)}
+    # Create forecast dictionary with confidence intervals
+    forecast_dict = {
+        str(date.date()): {
+            'forecast': round(forecast, 2),
+            'lower_bound': round(lower, 2),
+            'upper_bound': round(upper, 2)
+        }
+        for date, forecast, lower, upper 
+        in zip(future_dates, forecast_values, forecast_lower, forecast_upper)
+    }
 
     # Generate context-aware warnings
     context = []
@@ -87,18 +129,57 @@ def forecast(days=7, product_id=None, category=None, region=None,
     max_deviation = max(forecast_values) - max_level
     min_deviation = min_level - min(forecast_values)
     
-    # Generate single most critical warning with context
-    warning = ""
-    if max_deviation > 0 and max_deviation/max_level > min_deviation/min_level:
-        # Overstock is more severe
-        warning = f"⚠️ High stock alert for {context_str}! Current forecast peaks at {max(forecast_values):.0f} units (exceeding maximum of {max_level:.0f} units by {max_deviation:.0f} units). Consider reducing order quantity."
-    elif min_deviation > 0:
-        # Stockout risk is more severe
-        warning = f"⚠️ Low stock risk for {context_str}! Forecast drops to {min(forecast_values):.0f} units (below safety level of {min_level:.0f} units by {min_deviation:.0f} units). Immediate reorder recommended."
-    else:
-        warning = f"✅ Inventory levels for {context_str} are within optimal range ({min_level:.0f} - {max_level:.0f} units)."
+    # Generate order recommendations with simple explanations
+    warnings = []
     
-    warnings = [warning]  # Keep as list for API consistency
+    # Calculate current stock based on recent historical data
+    latest_date = filtered_df['date'].max()
+    last_30_days = filtered_df[filtered_df['date'] >= latest_date - pd.Timedelta(days=30)]
+    daily_demand = last_30_days['sales'].mean()
+    
+    # Get the most recent stock level - calculate based on last week's average
+    last_week = filtered_df[filtered_df['date'] >= latest_date - pd.Timedelta(days=7)]
+    current_stock = last_week['sales'].mean() * 7  # Estimate current stock from last week's data
+    
+    # Calculate days of stock remaining
+    days_stock_left = int(current_stock / daily_demand) if daily_demand > 0 else 30
+    # Ensure days_stock_left is reasonable
+    days_stock_left = min(max(days_stock_left, 0), 90)  # Cap between 0 and 90 days
+    
+    # Project future stock
+    projected_stock = current_stock - (daily_demand * days)
+    
+    if product_id:
+        # Calculate reorder threshold based on lead time and daily demand
+        safety_days = 7  # Keep 7 days of safety stock
+        
+        if projected_stock <= reorder_point:
+            # Calculate optimal order quantity
+            order_quantity = max_level - projected_stock
+            stock_duration = max(0, days_stock_left)
+            
+            warnings.append(f"🚨 Important Notice for Product {product_id}:")
+            warnings.append(f"We need to order {int(order_quantity)} units because:")
+            warnings.append(f"• Current stock level: {int(current_stock)} units")
+            warnings.append(f"• This will last approximately {stock_duration} days")
+            warnings.append(f"• Your daily sales average: {int(daily_demand)} units")
+            warnings.append(f"• Delivery takes {lead_time} days + {safety_days} days safety stock needed")
+            
+            if stock_duration <= lead_time:
+                warnings.append(f"⚡ URGENT: Order immediately to avoid stockout!")
+            else:
+                warnings.append(f"📦 Place order soon to maintain optimal stock levels")
+        else:
+            safe_days = int((projected_stock - reorder_point) / daily_demand) if daily_demand > 0 else 30
+            warnings.append(f"✅ Product {product_id} stock is healthy:")
+            warnings.append(f"• Current stock level: {int(current_stock)} units")
+            warnings.append(f"• Stock will last for {safe_days} more days")
+            warnings.append(f"• Daily sales average: {int(daily_demand)} units")
+            warnings.append(f"• No immediate order needed")
+    else:
+        warnings.append("Please specify a product_id to get ordering recommendations")
+    
+    # warnings list is already created above
 
     # Plot forecast
     plt.figure(figsize=(12,6))
