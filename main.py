@@ -1,20 +1,60 @@
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
+from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 from typing import Optional
 import model
 
-app = FastAPI(title="Inventory Forecast API")
+# Initialize FastAPI with metadata
+app = FastAPI(
+    title="Inventory Forecast API",
+    description="API for inventory forecasting and management",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
 
-# Configure CORS
+# Configure CORS for both local and production
+ORIGINS = [
+    model.VERCEL_FRONTEND,
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "https://sustain-a-thon-8yn8.vercel.app",
+    "https://inventory-forecast-api.onrender.com"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[model.VERCEL_FRONTEND],
+    allow_origins=ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Custom OpenAPI schema configuration
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    openapi_schema = get_openapi(
+        title="Inventory Forecast API",
+        version="1.0.0",
+        description="API for inventory forecasting and management",
+        routes=app.routes,
+    )
+    
+    # Add custom configurations
+    openapi_schema["info"]["x-logo"] = {
+        "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
+    }
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 class ForecastRequest(BaseModel):
     days: int = 7
